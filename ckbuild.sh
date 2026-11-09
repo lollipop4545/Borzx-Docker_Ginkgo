@@ -1,9 +1,14 @@
 #!/bin/bash
 #
-# Build script for FloppyKernel (ginkgo).
-# Based on build script for Quicksilver, by Ghostrider.
+# Build script for Borzx-Docker Kernel (ginkgo / Xiaomi Trinket).
+# Modified and maintained by lollipop4545 (https://github.com/lollipop4545).
+#
+# Moral Rights & Original Credits:
+# Based on FloppyKernel build script by Flopster101 (https://github.com/Flopster101)
+# and Quicksilver build script by Ghostrider / Adithya R.
 # Copyright (C) 2020-2021 Adithya R. (original version)
-# Copyright (C) 2022-2025 Flopster101 (rewrite)
+# Copyright (C) 2022-2025 Flopster101 (FloppyKernel rewrite & Trinket kernel base)
+# Copyright (C) 2026 lollipop4545 (Borzx-Docker Kernel modifications)
 
 ## Variables
 # Toolchains
@@ -20,7 +25,7 @@ RV_REPO="https://api.github.com/repos/Rv-Project/RvClang/releases/latest"
 GCC_REPO="https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
 GCC64_REPO="https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
 # AnyKernel3
-AK3_URL="https://github.com/Flopster101/AnyKernel3"
+AK3_URL="https://github.com/lollipop4545/AnyKernel3"
 
 # Device fragments
 GINKGO_FRAGMENT="vendor/ginkgo.config"
@@ -38,19 +43,19 @@ shift
 # Set device-specific variables
 case "$TARGET_DEVICE" in
     ginkgo)
-        AK3_BRANCH="floppy-reborn"
+        AK3_BRANCH="Borzx-Docker"
         DEVICE="Redmi Note 8/8T"
         CODENAME="ginkgo"
         FRAGMENT="$GINKGO_FRAGMENT"
         ;;
     laurel_sprout)
-        AK3_BRANCH="floppy-reborn-laurel"
+        AK3_BRANCH="Borzx-Docker-laurel"
         DEVICE="Xiaomi Mi A3"
         CODENAME="laurel_sprout"
         FRAGMENT="$LAUREL_FRAGMENT"
         ;;
     mitrinket)
-        AK3_BRANCH="floppy-unity"
+        AK3_BRANCH="Borzx-Docker-unity"
         DEVICE="Redmi Note 8/8T and Xiaomi Mi A3"
         CODENAME="mitrinket"
         FRAGMENT="vendor/unified.config"
@@ -79,18 +84,16 @@ if [[ ! -d drivers ]]; then
     exit 1
 fi
 
-if [[ "$IS_GP" == "1" ]]; then
-    export KBUILD_BUILD_USER="Flopster101"
-    export KBUILD_BUILD_HOST="buildbot"
-fi
+export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-lollipop4545}"
+export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-Borzx-Docker}"
 
 # Other
 DEFAULT_DEFCONFIG="vendor/trinket-perf_defconfig"
 BASE_FRAGMENT="vendor/xiaomi-trinket.config"
-KERNEL_URL="https://github.com/Flopster101/flop_ginkgo_kernel"
+KERNEL_URL="https://github.com/lollipop4545/Borzx-Docker_Ginkgo"
 SECONDS=0 # builtin bash timer
 DATE="$(date '+%Y%m%d-%H%M')"
-BUILD_HOST="$USER@$(hostname)"
+BUILD_HOST="$KBUILD_BUILD_USER@$KBUILD_BUILD_HOST"
 # Paths
 TC_DIR="$WP/toolchains"
 SD_DIR="$TC_DIR/sdclang"
@@ -138,8 +141,8 @@ fi
 
 ## Customizable vars
 
-# FloppyKernel version
-FK_VER="v2.0b"
+# Borzx-Docker Kernel version
+BD_VER="v.0.5.0b"
 
 # Toggles
 USE_CCACHE=1
@@ -220,7 +223,7 @@ TEST_CHANNEL=1
 #TEST_BUILD=0
 
 # Upload build log
-LOG_UPLOAD=1
+LOG_UPLOAD=0
 
 # Pick aosp, proton, rm69, lolz, slim, greenforce, zyc, rv, custom
 if [[ -z "$CLANG_TYPE" ]]; then
@@ -230,12 +233,14 @@ else
 fi
 
 ## Secrets
-if [[ "$TEST_CHANNEL" == "0" ]]; then
-    TELEGRAM_CHAT_ID="$(cat ../chat)"
-elif [[ "$TEST_CHANNEL" == "1" ]]; then
-    TELEGRAM_CHAT_ID="$(cat ../chat_test)"
+if [[ "$DO_TG" == "1" ]]; then
+    if [[ "$TEST_CHANNEL" == "0" ]]; then
+        TELEGRAM_CHAT_ID="$(cat ../chat 2>/dev/null || true)"
+    elif [[ "$TEST_CHANNEL" == "1" ]]; then
+        TELEGRAM_CHAT_ID="$(cat ../chat_test 2>/dev/null || true)"
+    fi
+    TELEGRAM_BOT_TOKEN="$(cat ../bot_token 2>/dev/null || true)"
 fi
-TELEGRAM_BOT_TOKEN="$(cat ../bot_token)"
 
 ## Build type
 LINUX_VER=$(make kernelversion 2>/dev/null)
@@ -261,12 +266,27 @@ else
     CK_TYPE="Vanilla"
     CK_TYPE_SHORT="V"
 fi
-ZIP_PATH="$WP/Floppy_$FK_VER-$CK_TYPE-$CODENAME-$DATE.zip"
+ZIP_PATH="$WP/Borzx-Docker_$BD_VER-$CK_TYPE-$CODENAME-$DATE.zip"
+
+cat << "BANNER_EOF"
+  ██████╗  ██████╗ ██████╗ ███████╗██╗  ██╗
+  ██╔══██╗██╔═══██╗██╔══██╗╚══███╔╝╚██╗██╔╝
+  ██████╔╝██║   ██║██████╔╝  ███╔╝  ╚███╔╝ 
+  ██╔══██╗██║   ██║██╔══██╗ ███╔╝   ██╔██╗ 
+  ██████╔╝╚██████╔╝██║  ██║███████╗██╔╝ ██╗
+  ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+      D O C K E R   K E R N E L   v0.5.0b
+  ─────────────────────────────────────────
+   Dev / Modder : Surakiat (Borzx) (@lollipop4545 | borzx.site)
+   Base Kernel  : FloppyKernel by @Flopster101
+BANNER_EOF
 
 echo -e "\nINFO: Build info:
 - Device: $DEVICE ($CODENAME)
 - Addons: $CK_TYPE
-- Floppy version: $FK_VER
+- Borzx-Docker version: $BD_VER
+- Maintainer: $KBUILD_BUILD_USER ($BUILD_HOST)
+- Base Kernel: FloppyKernel (@Flopster101)
 - Linux version: $LINUX_VER
 - Defconfig: $DEFCONFIG
 - Build date: $DATE
@@ -276,13 +296,22 @@ echo -e "\nINFO: Build info:
 
 install_deps_deb() {
     # Dependencies
-    UB_DEPLIST="lz4 brotli flex bc cpio kmod ccache zip libtinfo5 python3"
-    if grep -q "Ubuntu" /etc/os-release; then
-        sudo apt update -qq
-        sudo apt install $UB_DEPLIST -y
-    else
-        echo "INFO: Your distro is not Ubuntu, skipping dependencies installation..."
-        echo "INFO: Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
+    UB_DEPLIST="lz4 brotli flex bc cpio kmod ccache zip python3"
+    local missing_deps=0
+    for cmd in lz4 brotli flex bc cpio depmod ccache zip python3; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_deps=1
+            break
+        fi
+    done
+    if [[ "$missing_deps" == "1" ]]; then
+        if grep -q "Ubuntu" /etc/os-release; then
+            sudo apt update -qq
+            sudo apt install $UB_DEPLIST -y
+        else
+            echo "INFO: Your distro is not Ubuntu, skipping dependencies installation..."
+            echo "INFO: Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
+        fi
     fi
 }
 
@@ -634,10 +663,10 @@ build() {
     fi
 
     if [[ "$IS_RELEASE" == "1" ]]; then
-        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT-release\""
+        VERSION_STR="\"-Borzx-Docker-$BD_VER-$CK_TYPE_SHORT-release\""
         VERSION_NOAUTO=1
     else
-        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT\""
+        VERSION_STR="\"-Borzx-Docker-$BD_VER-$CK_TYPE_SHORT\""
     fi
 
     if [[ "$CKB_CRASHKEY" == "1" ]]; then
@@ -741,46 +770,48 @@ post_build() {
         exit 1
     fi
 
-    # If local AK3 copy exists, assume testing.
-    if [[ -d "$AK3_DIR" ]]; then
-        AK3_TEST=1
-        echo -e "\nINFO: AK3_TEST flag set because local AnyKernel3 dir was found"
+    local AK3_STAGE="$KDIR/out/ak3_staging"
+    rm -rf "$AK3_STAGE"
+
+    if [[ -d "$KDIR/AnyKernel3" ]]; then
+        echo -e "\nINFO: Using bundled AnyKernel3 directory from repository..."
+        cp -r "$KDIR/AnyKernel3" "$AK3_STAGE"
+    elif [[ -d "$AK3_DIR" ]]; then
+        echo -e "\nINFO: Using local AnyKernel3 directory ($AK3_DIR)..."
+        cp -r "$AK3_DIR" "$AK3_STAGE"
     else
-        if ! git clone -q --depth=1 -b "$AK3_BRANCH" "$AK3_URL" "$AK3_DIR"; then
+        if ! git clone -q --depth=1 -b "$AK3_BRANCH" "$AK3_URL" "$AK3_STAGE"; then
             echo -e "\nERROR: Failed to clone AnyKernel3!"
             exit 1
         fi
     fi
 
     ## Copy the built binaries
-    cp "$OUT_IMAGE" "$AK3_DIR"
+    cp "$OUT_IMAGE" "$AK3_STAGE"
     if [[ "$CODENAME" == "mitrinket" ]]; then
         # Device-named DTBOs (required in mitrinket unified builds)
-        cp "$OUT_DTBO" "$AK3_DIR/dtbo-ginkgo.img"
-        cp "$DTBO_TMP/dtbo-laurel_sprout.img" "$AK3_DIR/dtbo-laurel_sprout.img"
-        cp "$OUT_DTB_GINKGO" "$AK3_DIR/dtb-ginkgo"
-        cp "$OUT_DTB_LAUREL" "$AK3_DIR/dtb-laurel_sprout"
+        cp "$OUT_DTBO" "$AK3_STAGE/dtbo-ginkgo.img"
+        cp "$DTBO_TMP/dtbo-laurel_sprout.img" "$AK3_STAGE/dtbo-laurel_sprout.img"
+        cp "$OUT_DTB_GINKGO" "$AK3_STAGE/dtb-ginkgo"
+        cp "$OUT_DTB_LAUREL" "$AK3_STAGE/dtb-laurel_sprout"
     else
-        cp "$OUT_DTBO" "$AK3_DIR"
-        cp "$OUT_DTB" "$AK3_DIR/dtb"
+        cp "$OUT_DTBO" "$AK3_STAGE"
+        cp "$OUT_DTB" "$AK3_STAGE/dtb"
     fi
-    rm -f *zip
 
     ## Prepare kernel flashable zip
-    cd "$AK3_DIR"
-    git checkout "$AK3_BRANCH" &> /dev/null
-    zip -r9 "$ZIP_PATH" * -x '*.git*' README.md *placeholder
-    cd ..
-    rm -rf "$AK3_DIR"
+    cd "$AK3_STAGE"
+    zip -r9 "$ZIP_PATH" * -x '*.git*' README.md '*placeholder'
+    cd "$KDIR"
+    rm -rf "$AK3_STAGE"
+
+    mkdir -p "$KDIR/releases"
+    cp -f "$ZIP_PATH" "$KDIR/releases/"
+
     echo -e "\nINFO: Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !"
     echo "Zip: $ZIP_PATH"
+    echo "Release copy: $KDIR/releases/$(basename "$ZIP_PATH")"
     echo " "
-    if [[ "$AK3_TEST" == "1" ]]; then
-        echo -e "\nINFO: Skipping deletion of AnyKernel3 dir because test flag is set"
-    else
-        rm -rf "$AK3_DIR"
-    fi
-    cd "$KDIR"
 }
 
 upload() {
@@ -799,7 +830,7 @@ upload() {
         curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
     fi
     # Delete any leftover zip files
-    # rm -f "$WP/FloppyKernel*zip"
+    # rm -f "$WP/Borzx-DockerKernel*zip"
 }
 
 clean() {

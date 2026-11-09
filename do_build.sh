@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+# Build wrapper for Borzx-Docker Kernel
+# Maintainer / Modder: @lollipop4545 (https://github.com/lollipop4545)
+# Original Base / Moral Rights: FloppyKernel by @Flopster101 (https://github.com/Flopster101)
+#
 set -e
 
 # Configuration

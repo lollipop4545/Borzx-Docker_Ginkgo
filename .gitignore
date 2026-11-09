@@ -137,3 +137,8 @@ Android.bp
 
 # Ignore script log file
 log.txt
+
+# Toolchains and release zips
+/toolchains/
+/releases/
+/*.zip
