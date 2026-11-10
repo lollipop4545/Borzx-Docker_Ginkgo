@@ -14,7 +14,7 @@
    Base Kernel  : FloppyKernel (@Flopster101)
 ```
 
-**Borzx-Docker Kernel** is a custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)** and **Xiaomi Trinket** devices, engineered specifically to run **Docker Engine**, **containerd**, **Podman**, **LXC**, and rootless containers natively on Android / Linux environments.
+**Borzx-Docker Kernel** is an audited custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)** and **Xiaomi Trinket** devices, engineered specifically to turn aging Snapdragon 665 phones into dedicated, ultra-low-power **Docker & container microservers**.
 
 Developed and maintained by **Surakiat Sittisomboon (Borzx)** — **[@lollipop4545](https://github.com/lollipop4545)** ([borzx.site](https://borzx.site)), built upon the **FloppyKernel** base by **[@Flopster101](https://github.com/Flopster101)**.
 
@@ -34,102 +34,162 @@ We provide two official builds in the [Releases](https://github.com/lollipop4545
 
 ---
 
-## Features & Container Capabilities
+## Verified Kernel Capabilities & `check-config.sh` Audit
 
-In addition to all upstream **FloppyKernel** optimizations and hardware support for `ginkgo`/`willow` (Android 10 – 16, two-stage & legacy init, LIRC/spidev IR HAL auto-detection), **Borzx-Docker Kernel** enables the complete set of core Docker `check-config.sh` kernel requirements:
+This kernel has been audited on a physical Redmi Note 8 using Moby's official `check-config.sh` tool against the live `/proc/config.gz`. The complete 127-line report is available in [CHECK_CONFIG.md](./CHECK_CONFIG.md).
 
 ### 1. Kernel Namespaces
-- `CONFIG_NAMESPACES=y`
-- `CONFIG_USER_NS=y` (User namespaces for rootless containers)
-- `CONFIG_PID_NS=y` (Process ID namespaces)
-- `CONFIG_IPC_NS=y` (IPC namespaces)
-- `CONFIG_UTS_NS=y` (UTS / hostname namespaces)
-- `CONFIG_NET_NS=y` (Network namespaces)
+* `CONFIG_NAMESPACES=y`
+* `CONFIG_USER_NS=y` (User namespaces for rootless containers)
+* `CONFIG_PID_NS=y` (Process ID namespaces)
+* `CONFIG_IPC_NS=y` (IPC namespaces)
+* `CONFIG_UTS_NS=y` (UTS / hostname namespaces)
+* `CONFIG_NET_NS=y` (Network namespaces)
 
-### 2. Control Groups (cgroups) & Resource Controllers
-- `CONFIG_CGROUPS=y`
-- `CONFIG_CGROUP_PIDS=y` (Process number controller)
-- `CONFIG_CGROUP_DEVICE=y` (Device whitelist controller)
-- `CONFIG_CGROUP_FREEZER=y`, `CONFIG_CGROUP_SCHED=y`, `CONFIG_CGROUP_CPUACCT=y`
-- `CONFIG_FAIR_GROUP_SCHED=y`
-- `CONFIG_CPUSETS=y`, `CONFIG_MEMCG=y`, `CONFIG_MEMCG_SWAP=y`, `CONFIG_MEMCG_SWAP_ENABLED=y`
-- `CONFIG_BLK_CGROUP=y`
-- `CONFIG_POSIX_MQUEUE=y` & `CONFIG_POSIX_MQUEUE_SYSCTL=y`
+### 2. Control Groups (cgroups v1 & v2) & Resource Limits
+* `CONFIG_CGROUPS=y`
+* `CONFIG_CGROUP_PIDS=y` (Process number limiting)
+* `CONFIG_CGROUP_DEVICE=y` (Device whitelist isolation)
+* `CONFIG_CGROUP_FREEZER=y`, `CONFIG_CGROUP_SCHED=y`, `CONFIG_CGROUP_CPUACCT=y`
+* `CONFIG_FAIR_GROUP_SCHED=y`
+* `CONFIG_CPUSETS=y`, `CONFIG_MEMCG=y`, `CONFIG_MEMCG_SWAP=y`, `CONFIG_MEMCG_SWAP_ENABLED=y`
+* `CONFIG_BLK_CGROUP=y`
+* `CONFIG_POSIX_MQUEUE=y` & `CONFIG_POSIX_MQUEUE_SYSCTL=y`
+* `CONFIG_KEYS=y` & `CONFIG_SECCOMP_FILTER=y`
+* *Note on CPU Limits:* `CONFIG_CFS_BANDWIDTH` is unavailable because this kernel uses Qualcomm's `SCHED_WALT` (Window-Assisted Load Tracking) scheduler, which mutually excludes CFS quotas.
 
-### 3. Container Networking, Bridge, Overlay & Netfilter
-- `CONFIG_VETH=y` (Virtual Ethernet pair device)
-- `CONFIG_BRIDGE=y`, `CONFIG_STP=y`, `CONFIG_BRIDGE_NETFILTER=y`, `CONFIG_DUMMY=y`
-- `CONFIG_OVERLAY_FS=y` (Native overlay2 storage driver)
-- `CONFIG_NF_CONNTRACK=y`, `CONFIG_NF_CONNTRACK_IPV4=y`, `CONFIG_NF_CONNTRACK_IPV6=y`
-- `CONFIG_NF_NAT=y`, `CONFIG_IP_NF_NAT=y`, `CONFIG_IP_NF_TARGET_MASQUERADE=y`, `CONFIG_IP_NF_TARGET_REDIRECT=y`
-- `CONFIG_IP6_NF_FILTER=y`, `CONFIG_IP6_NF_IPTABLES=y`, `CONFIG_IP6_NF_NAT=y`
-- `CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y`, `CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y`, `CONFIG_NETFILTER_XT_MATCH_IPVS=y`, `CONFIG_NETFILTER_XT_MARK=y`
+### 3. Networking, Bridge, NAT & Netfilter
+* `CONFIG_VETH=y` (Virtual Ethernet pairs)
+* `CONFIG_BRIDGE=y`, `CONFIG_STP=y`, `CONFIG_BRIDGE_NETFILTER=y`, `CONFIG_DUMMY=y`
+* `CONFIG_OVERLAY_FS=y` (Native overlay2 storage driver on f2fs / ext4)
+* `CONFIG_NF_CONNTRACK=y`, `CONFIG_NF_CONNTRACK_IPV4=y`, `CONFIG_NF_CONNTRACK_IPV6=y`
+* `CONFIG_NF_NAT=y`, `CONFIG_IP_NF_NAT=y`, `CONFIG_IP_NF_TARGET_MASQUERADE=y`, `CONFIG_IP_NF_TARGET_REDIRECT=y`
+* `CONFIG_IP_NF_FILTER=y`, `CONFIG_IP6_NF_FILTER=y`, `CONFIG_IP6_NF_IPTABLES=y`, `CONFIG_IP6_NF_NAT=y`
+* `CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y`, `CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y`, `CONFIG_NETFILTER_XT_MATCH_IPVS=y`, `CONFIG_NETFILTER_XT_MARK=y`
 
-### 4. IPVS (IP Virtual Server) Load Balancing (Docker Swarm / Kubernetes)
-- `CONFIG_IP_VS=y` & `CONFIG_IP_VS_IPV6=y`
-- `CONFIG_IP_VS_PROTO_TCP=y` & `CONFIG_IP_VS_PROTO_UDP=y`
-- `CONFIG_IP_VS_RR=y`, `CONFIG_IP_VS_WRR=y`, `CONFIG_IP_VS_LC=y`
+### 4. IPVS Load Balancing Support
+* `CONFIG_IP_VS=y` & `CONFIG_IP_VS_IPV6=y`
+* `CONFIG_IP_VS_PROTO_TCP=y` & `CONFIG_IP_VS_PROTO_UDP=y`
+* `CONFIG_IP_VS_RR=y`, `CONFIG_IP_VS_WRR=y`, `CONFIG_IP_VS_LC=y`
+* *Note on Multi-Node Overlays:* IPVS handles Layer-4 transport load balancing. For multi-node Kubernetes/k3s setups, use host networking or flannel `host-gw` mode, as overlay encapsulation (`CONFIG_VXLAN`) is not enabled on this tree.
 
 ### 5. Accurate Embedded `IKCONFIG` (`/proc/config.gz`)
-- `kernel/Makefile` is patched so `/proc/config.gz` embeds the real compiled `$(objtree)/.config` rather than the static stock defconfig, allowing `docker info` and `check-config.sh` to accurately verify all enabled container flags at runtime.
+* `kernel/Makefile` is patched to embed `$(objtree)/.config` directly rather than the stock Qualcomm defconfig, allowing Docker and container runtimes to accurately inspect active capabilities.
+
+---
+
+## Android-Specific Gotchas & How We Address Them
+
+Running Docker on Android involves several platform-specific hurdles that standard Linux kernels don't encounter:
+
+1. **`CONFIG_ANDROID_PARANOID_NETWORK` is Absent (Disabled):**  
+   Stock Android kernels restrict network socket creation to specific Android GIDs (e.g. `aid_inet`). In this kernel, paranoid network checks are removed, allowing containerized applications to open raw network sockets freely.
+2. **`CONFIG_RT_GROUP_SCHED` is Disabled:**  
+   When enabled, Android kernels fail to allocate real-time CPU quotas to containers, causing `docker run` to crash with `cpu.rt_runtime_us` errors. This is disabled in our tree.
+3. **SELinux Works in `Enforcing` Mode:**  
+   Docker functions with SELinux in **Enforcing** mode. You do *not* need to set `setenforce 0` or compromise device security.
+4. **Android Policy-Routing Bridge Fix:**  
+   Android routes network packets using multiple routing tables based on UID and interface. Packets arriving on `docker0` do not consult the `main` routing table by default, breaking published ports (`-p 8080:80`) and container-to-WAN traffic.  
+   Our launch script automatically injects the two required policy routing rules:
+   ```bash
+   # Add main routing table lookup
+   ip rule add pref 5000 from all lookup main
+   # Route docker0 traffic through current uplink table
+   ip rule add pref 5001 iif docker0 lookup <uplink_table>
+   ```
+
+---
+
+## Quick Start & Verification
+
+### 1. Launching Docker on Android
+We provide a standalone, production-tested helper script in [`extras/start-docker.sh`](./extras/start-docker.sh).
+
+Install it in Termux:
+```bash
+cp extras/start-docker.sh $PREFIX/bin/start-docker
+chmod +x $PREFIX/bin/start-docker
+```
+
+Run it anytime as the regular Termux user:
+```bash
+start-docker
+```
+It automatically clears stale sockets, starts `dockerd` detached in the background (surviving terminal exit), applies the bridge routing rules, and configures socket permissions.
+
+### 2. Verify Your Installation
+In Termux:
+```bash
+# 1. Test basic container execution:
+docker run --rm hello-world
+
+# 2. Test bridge networking and port publishing:
+docker run -d --name test-web -p 8080:80 nginx:alpine
+curl http://127.0.0.1:8080
+# (Access http://<phone-ip>:8080 from another PC on your Wi-Fi!)
+docker rm -f test-web
+```
 
 ---
 
 ## 24/7 Home Server Care: Battery & Idle Charging
 
-If you are using your Redmi Note 8 as a 24/7 home server (e.g. running Home Assistant, Pi-hole, Cloudflare Tunnels, databases), keeping lithium-ion batteries plugged into a charger at 100% permanently can cause battery degradation and swelling.
+Keeping a smartphone connected to a charger 24/7 at 100% capacity can cause battery degradation and swelling.
 
-The **Snapdragon 665 / trinket PMIC** includes hardware **Power Path Management (Idle / Bypass Charging)** supported by this kernel:
+The **Qualcomm Snapdragon 665 PMIC (SMB5)** supports true **Hardware Bypass Charging (Power Path Management)**:
 - **Sysfs node:** `/sys/class/power_supply/battery/charging_enabled`
-- Writing `0` stops charging the battery, powering the device directly from the USB cable without battery wear.
-- Writing `1` re-enables normal charging.
+- **Verified on `ginkgo`:** Writing `0` to `charging_enabled` while USB is connected transitions battery status to **"Not charging"** with **0mA battery drain** (`current_now = 0`). The phone runs entirely from the external USB rail without cycling the battery.
 
-### Recommended Approaches:
-1. **ACC (Advanced Charging Controller)**: Install the ACC module in Magisk. It will automatically stop charging at 75%–80% and resume when it drops to 70%.
-2. **Simple Cron / Script**: Run a small background loop in Termux:
-   ```bash
-   # Stop charging when capacity >= 80%:
-   su -c "echo 0 > /sys/class/power_supply/battery/charging_enabled"
-   # Resume charging when capacity <= 70%:
-   su -c "echo 1 > /sys/class/power_supply/battery/charging_enabled"
-   ```
+### Automated Battery Guard Loop
+We provide [`extras/battery-guard.sh`](./extras/battery-guard.sh) to maintain the battery between 70% and 80%:
+
+```bash
+#!/system/bin/sh
+LOW=70
+HIGH=80
+B=/sys/class/power_supply/battery
+
+while true; do
+    cap=$(cat $B/capacity)
+    if [ "$cap" -ge "$HIGH" ]; then
+        echo 0 > $B/charging_enabled
+    elif [ "$cap" -le "$LOW" ]; then
+        echo 1 > $B/charging_enabled
+    fi
+    sleep 60
+done
+```
+*Alternatively, install the **ACC (Advanced Charging Controller)** module via Magisk, which uses these exact same kernel nodes.*
 
 ---
 
-## Running Docker in Termux
+## Starting Docker on Boot
 
-When launching Docker on Android, remember that Magisk root (`su`) operates inside Android's `/system/bin` environment and does not inherit Termux's `$PATH` by default. `dockerd` needs Termux's `$PATH` to discover `containerd`.
+For a headless home server, you want Docker to start automatically when the phone boots.
 
-### Launching Docker Daemon:
+We provide a boot service script in [`extras/docker-boot.sh`](./extras/docker-boot.sh). To install it with Magisk or KernelSU:
 ```bash
-su -c '
-export PATH=/data/data/com.termux/files/usr/bin:$PATH
-chmod -R 755 /data/data/com.termux/files/usr/var/run 2>/dev/null
-rm -f /data/data/com.termux/files/usr/var/run/docker.sock
-rm -f /data/data/com.termux/files/usr/var/run/containerd/containerd.sock
-dockerd &
-'
+su -c 'cp extras/docker-boot.sh /data/adb/service.d/docker-boot.sh && chmod 755 /data/adb/service.d/docker-boot.sh'
 ```
-
-### Checking Running Containers:
-```bash
-su -c "export PATH=/data/data/com.termux/files/usr/bin:\$PATH; docker ps"
-```
+This waits until Android finishes booting and Wi-Fi connects, then launches `start-docker` in the background.
 
 ---
 
-## Flashing Process
+## Tested Environments & Workloads
 
-The repository includes the bundled [`AnyKernel3`](./AnyKernel3) flasher template with a clean 7-bit ASCII recovery banner for TWRP and OrangeFox.
+### Tested Hardware & ROMs
+- **Device:** Xiaomi Redmi Note 8 (`ginkgo`) / Redmi Note 8T (`willow`)
+- **Firmware:** Global / India / China vendor base
+- **Android Versions:** Android 11, 12, 13, and 14 (tested on LineageOS 20 baseline)
+- **Root Solutions:** Magisk 26.x - 30.x (Vanilla build) & KernelSU-Next (KSU build)
+- **SELinux Mode:** Enforcing
 
-### Supported Installation Methods
-1. **Custom Recovery (TWRP / OrangeFox / LineageOS Recovery)**:
-   - Reboot to Recovery.
-   - Select **Install** (or **ADB Sideload**) and flash your chosen `.zip`.
-   - The installer displays the Borzx ASCII banner, automatically detects two-stage init vs. legacy init, IR HAL type, and Android version timestamp requirements, and flashes `boot` and `dtbo`.
-   - Reboot to System.
-2. **Kernel Flasher Apps (e.g., Horizon Kernel Flasher / Franco Kernel Manager)**:
-   - Import and flash the AnyKernel3 `.zip` directly from Android (root required), then reboot.
+### Verified Production Containers on 3GB/4GB RAM
+- **Home Assistant** (`ghcr.io/home-assistant/home-assistant:latest`) — Smart home automation engine
+- **Cloudflare Tunnel** (`cloudflare/cloudflared:latest`) — Secure zero-trust remote access without port forwarding
+- **ESPHome** (`ghcr.io/esphome/esphome:latest`) — IoT firmware compiler & dashboard
+- **Nginx / Caddy** — Lightweight reverse proxy with SSL
+- **Pi-hole / AdGuard Home** — Network-wide DNS sinkhole
 
 ---
 
@@ -155,7 +215,20 @@ bash do_build.sh ginkgo k
 # Clean build
 bash do_build.sh ginkgo c
 ```
-- Compiled `Image.gz-dtb`, `dtb`, and `dtbo.img` are automatically packaged into flashable `.zip` files in `./releases/`.
+Compiled flashable zips are automatically packaged into `./releases/`.
+
+---
+
+## Changelog
+
+### v0.5.0 (Initial Official Release)
+- Enabled full Docker cgroups (`devices`, `pids`, `cpu`, `cpuset`, `memory`, `freezer`, `blkio`, and `POSIX_MQUEUE`).
+- Enabled container networking (`veth`, `bridge`, `bridge-netfilter`, full IPv4/IPv6 NAT, and IPVS load balancing).
+- Patched `kernel/Makefile` to embed compiled `.config` into `/proc/config.gz`.
+- Bundled AnyKernel3 with clean 7-bit ASCII recovery banner for TWRP / OrangeFox.
+- Added verified Qualcomm bypass charging documentation and `battery-guard.sh`.
+- Added Android policy-routing network bridge fix in `extras/start-docker.sh`.
+- Shipped both **Vanilla** and **KernelSU-Next + SUSFS** variants.
 
 ---
 
@@ -163,7 +236,6 @@ bash do_build.sh ginkgo c
 
 ### Maintainer & Docker Kernel Modder
 - **Surakiat Sittisomboon (Borzx)** — **[@lollipop4545](https://github.com/lollipop4545)** | **[borzx.site](https://borzx.site)**
-  - Docker & container kernel configuration (`ginkgo.config` / `trinket-perf_defconfig`), `IKCONFIG` build fix, AnyKernel3 Borzx-Docker packaging, and maintenance.
 
 ### Original Kernel Author & Moral Rights Attribution
 - **[@Flopster101](https://github.com/Flopster101)** ([FloppyKernel Series](https://github.com/FlopKernel-Series/flop_trinket-mi_kernel)) — Original author and maintainer of **FloppyKernel** for Xiaomi Trinket (`ginkgo` / `willow` / `laurel_sprout`).
@@ -178,4 +250,4 @@ bash do_build.sh ginkgo c
 
 ## License
 
-This kernel source is licensed under the **GNU General Public License v2.0 (GPL-2.0)** — see [`COPYING`](./COPYING) for details. AnyKernel3 components in [`AnyKernel3/`](./AnyKernel3) are licensed under the **GNU General Public License v3.0 (GPL-3.0)** — see [`AnyKernel3/LICENSE`](./AnyKernel3/LICENSE).
+This kernel source is licensed under the **GNU General Public License v2.0 (GPL-2.0)** — see [`COPYING`](./COPYING) for details. AnyKernel3 flasher scripts in [`AnyKernel3/`](./AnyKernel3) are licensed under the **GNU General Public License v3.0 (GPL-3.0)** — see [`AnyKernel3/LICENSE`](./AnyKernel3/LICENSE).
