@@ -142,7 +142,7 @@ fi
 ## Customizable vars
 
 # Borzx-Docker Kernel version
-BD_VER="v.0.5.0b"
+BD_VER="v.0.5.0"
 
 # Toggles
 USE_CCACHE=1
@@ -275,7 +275,7 @@ cat << "BANNER_EOF"
   ██╔══██╗██║   ██║██╔══██╗ ███╔╝   ██╔██╗ 
   ██████╔╝╚██████╔╝██║  ██║███████╗██╔╝ ██╗
   ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-      D O C K E R   K E R N E L   v0.5.0b
+      D O C K E R   K E R N E L   v0.5.0
   ─────────────────────────────────────────
    Dev / Modder : Surakiat (Borzx) (@lollipop4545 | borzx.site)
    Base Kernel  : FloppyKernel by @Flopster101

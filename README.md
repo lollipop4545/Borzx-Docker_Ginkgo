@@ -1,4 +1,4 @@
-# Borzx-Docker Kernel (`v0.5.0b`) — Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)
+# Borzx-Docker Kernel (`v0.5.0`) — Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)
 
 ```text
   ██████╗  ██████╗ ██████╗ ███████╗██╗  ██╗
@@ -7,7 +7,7 @@
   ██╔══██╗██║   ██║██╔══██╗ ███╔╝   ██╔██╗ 
   ██████╔╝╚██████╔╝██║  ██║███████╗██╔╝ ██╗
   ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-      D O C K E R   K E R N E L   v0.5.0b
+      D O C K E R   K E R N E L   v0.5.0
   ─────────────────────────────────────────
    Dev / Modder : Surakiat (Borzx)
    GitHub / Web : @lollipop4545 | borzx.site
@@ -17,6 +17,20 @@
 **Borzx-Docker Kernel** is a custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)** and **Xiaomi Trinket** devices, engineered specifically to run **Docker Engine**, **containerd**, **Podman**, **LXC**, and rootless containers natively on Android / Linux environments.
 
 Developed and maintained by **Surakiat Sittisomboon (Borzx)** — **[@lollipop4545](https://github.com/lollipop4545)** ([borzx.site](https://borzx.site)), built upon the **FloppyKernel** base by **[@Flopster101](https://github.com/Flopster101)**.
+
+---
+
+## Which Variant Should You Flash?
+
+We provide two official builds in the [Releases](https://github.com/lollipop4545/Borzx-Docker_Ginkgo/releases) tab:
+
+| Variant | Recommended For | Details |
+|---|---|---|
+| **Vanilla** | **Magisk / APatch Users (Default)** | The cleanest, most universal baseline. Compatible with all ROMs and existing root setups. **Flash this if your device already has Magisk!** |
+| **KSUNext-SUSFS** | **KernelSU Users** | Embeds KernelSU-Next and SUSFS directly into the kernel image for built-in kernel-level root without Magisk. |
+
+> [!WARNING]
+> **Do not flash KernelSU over an existing Magisk installation!** Having both Magisk and KernelSU active simultaneously can lead to root conflicts and boot issues. If you already have Magisk, flash the **Vanilla** build.
 
 ---
 
@@ -45,7 +59,7 @@ In addition to all upstream **FloppyKernel** optimizations and hardware support 
 ### 3. Container Networking, Bridge, Overlay & Netfilter
 - `CONFIG_VETH=y` (Virtual Ethernet pair device)
 - `CONFIG_BRIDGE=y`, `CONFIG_STP=y`, `CONFIG_BRIDGE_NETFILTER=y`, `CONFIG_DUMMY=y`
-- `CONFIG_OVERLAY_FS=y`
+- `CONFIG_OVERLAY_FS=y` (Native overlay2 storage driver)
 - `CONFIG_NF_CONNTRACK=y`, `CONFIG_NF_CONNTRACK_IPV4=y`, `CONFIG_NF_CONNTRACK_IPV6=y`
 - `CONFIG_NF_NAT=y`, `CONFIG_IP_NF_NAT=y`, `CONFIG_IP_NF_TARGET_MASQUERADE=y`, `CONFIG_IP_NF_TARGET_REDIRECT=y`
 - `CONFIG_IP6_NF_FILTER=y`, `CONFIG_IP6_NF_IPTABLES=y`, `CONFIG_IP6_NF_NAT=y`
@@ -61,14 +75,57 @@ In addition to all upstream **FloppyKernel** optimizations and hardware support 
 
 ---
 
+## 24/7 Home Server Care: Battery & Idle Charging
+
+If you are using your Redmi Note 8 as a 24/7 home server (e.g. running Home Assistant, Pi-hole, Cloudflare Tunnels, databases), keeping lithium-ion batteries plugged into a charger at 100% permanently can cause battery degradation and swelling.
+
+The **Snapdragon 665 / trinket PMIC** includes hardware **Power Path Management (Idle / Bypass Charging)** supported by this kernel:
+- **Sysfs node:** `/sys/class/power_supply/battery/charging_enabled`
+- Writing `0` stops charging the battery, powering the device directly from the USB cable without battery wear.
+- Writing `1` re-enables normal charging.
+
+### Recommended Approaches:
+1. **ACC (Advanced Charging Controller)**: Install the ACC module in Magisk. It will automatically stop charging at 75%–80% and resume when it drops to 70%.
+2. **Simple Cron / Script**: Run a small background loop in Termux:
+   ```bash
+   # Stop charging when capacity >= 80%:
+   su -c "echo 0 > /sys/class/power_supply/battery/charging_enabled"
+   # Resume charging when capacity <= 70%:
+   su -c "echo 1 > /sys/class/power_supply/battery/charging_enabled"
+   ```
+
+---
+
+## Running Docker in Termux
+
+When launching Docker on Android, remember that Magisk root (`su`) operates inside Android's `/system/bin` environment and does not inherit Termux's `$PATH` by default. `dockerd` needs Termux's `$PATH` to discover `containerd`.
+
+### Launching Docker Daemon:
+```bash
+su -c '
+export PATH=/data/data/com.termux/files/usr/bin:$PATH
+chmod -R 755 /data/data/com.termux/files/usr/var/run 2>/dev/null
+rm -f /data/data/com.termux/files/usr/var/run/docker.sock
+rm -f /data/data/com.termux/files/usr/var/run/containerd/containerd.sock
+dockerd &
+'
+```
+
+### Checking Running Containers:
+```bash
+su -c "export PATH=/data/data/com.termux/files/usr/bin:\$PATH; docker ps"
+```
+
+---
+
 ## Flashing Process
 
-The repository includes the bundled [`AnyKernel3`](./AnyKernel3) flasher template, pre-configured for `ginkgo` and `willow`.
+The repository includes the bundled [`AnyKernel3`](./AnyKernel3) flasher template with a clean 7-bit ASCII recovery banner for TWRP and OrangeFox.
 
 ### Supported Installation Methods
 1. **Custom Recovery (TWRP / OrangeFox / LineageOS Recovery)**:
    - Reboot to Recovery.
-   - Select **Install** (or **ADB Sideload**) and flash `Borzx-Docker_v.0.5.0b-Vanilla-ginkgo-*.zip`.
+   - Select **Install** (or **ADB Sideload**) and flash your chosen `.zip`.
    - The installer displays the Borzx ASCII banner, automatically detects two-stage init vs. legacy init, IR HAL type, and Android version timestamp requirements, and flashes `boot` and `dtbo`.
    - Reboot to System.
 2. **Kernel Flasher Apps (e.g., Horizon Kernel Flasher / Franco Kernel Manager)**:
@@ -89,14 +146,16 @@ sudo apt install -y build-essential clang lld make git python3 bc flex bison \
 ### Compile & Package Flashable Zip
 From the root of the repository:
 ```bash
-# Standard build for Redmi Note 8/8T (ginkgo)
+# Build Vanilla (Default, for Magisk users)
 bash do_build.sh ginkgo
+
+# Build KernelSU variant
+bash do_build.sh ginkgo k
 
 # Clean build
 bash do_build.sh ginkgo c
 ```
-- The build script (`ckbuild.sh`) automatically fetches the required AOSP Clang & GCC binutils toolchains into `../toolchains/` if not already present.
-- Compiled `Image.gz-dtb`, `dtb`, and `dtbo.img` are automatically packaged using the bundled [`AnyKernel3/`](./AnyKernel3) directory into a flashable `.zip` in both `../` and `./releases/`.
+- Compiled `Image.gz-dtb`, `dtb`, and `dtbo.img` are automatically packaged into flashable `.zip` files in `./releases/`.
 
 ---
 

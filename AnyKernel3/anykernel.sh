@@ -6,7 +6,7 @@
 ### AnyKernel setup
 # global properties
 properties() { '
-kernel.string=Borzx-Docker v0.5.0b by @lollipop4545 (borzx.site) | Base: FloppyKernel (@Flopster101)
+kernel.string=Borzx-Docker v0.5.0 by @lollipop4545 (borzx.site) | Base: FloppyKernel (@Flopster101)
 do.devicecheck=1
 do.modules=0
 do.systemless=1
