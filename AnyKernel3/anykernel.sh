@@ -36,13 +36,13 @@ PATCH_VBMETA_FLAG=auto;
 # import functions/variables and setup patching - see for reference (DO NOT REMOVE)
 . tools/ak3-core.sh;
 
-ui_print "─────────────────────────────────────────"
+ui_print "-----------------------------------------"
 ui_print " Borzx-Docker Kernel for Redmi Note 8/8T"
 ui_print " Developer : Surakiat (Borzx)"
 ui_print " GitHub    : github.com/lollipop4545"
 ui_print " Website   : borzx.site"
 ui_print " Base      : FloppyKernel (@Flopster101)"
-ui_print "─────────────────────────────────────────"
+ui_print "-----------------------------------------"
 ui_print " "
 
 # boot install
@@ -157,9 +157,9 @@ flash_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_
 ui_print "-> Flashing DTBO image..."
 flash_dtbo;
 ui_print " "
-ui_print "─────────────────────────────────────────"
+ui_print "-----------------------------------------"
 ui_print " Borzx-Docker Kernel flashed successfully!"
 ui_print " Docker & Container support is ready."
 ui_print " Special thanks to @Flopster101 & osm0sis."
-ui_print "─────────────────────────────────────────"
+ui_print "-----------------------------------------"
 ## end boot install
