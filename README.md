@@ -184,12 +184,16 @@ This waits until Android finishes booting and Wi-Fi connects, then launches `sta
 - **Root Solutions:** Magisk 26.x - 30.x (Vanilla build) & KernelSU-Next (KSU build)
 - **SELinux Mode:** Enforcing
 
-### Verified Production Containers on 3GB/4GB RAM
+### Verified Containers on Hardware (Tested Live on Device)
 - **Home Assistant** (`ghcr.io/home-assistant/home-assistant:latest`) — Smart home automation engine
 - **Cloudflare Tunnel** (`cloudflare/cloudflared:latest`) — Secure zero-trust remote access without port forwarding
 - **ESPHome** (`ghcr.io/esphome/esphome:latest`) — IoT firmware compiler & dashboard
-- **Nginx / Caddy** — Lightweight reverse proxy with SSL
+- **Nginx** (`nginx:alpine`) — Verified with bridge networking and host port publishing (`-p 8080:80`)
+
+### Recommended Community Workloads (Suitable for 3GB/4GB RAM)
 - **Pi-hole / AdGuard Home** — Network-wide DNS sinkhole
+- **Caddy** — Lightweight reverse proxy with automatic HTTPS
+- **Eclipse Mosquitto** — Lightweight MQTT message broker
 
 ---
 
