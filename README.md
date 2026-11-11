@@ -14,9 +14,12 @@
    Base Kernel  : FloppyKernel (@Flopster101)
 ```
 
-**Borzx-Docker Kernel** is an audited custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)** and **Xiaomi Trinket** devices, engineered specifically to turn aging Snapdragon 665 phones into dedicated, ultra-low-power **Docker & container microservers**.
+**Borzx-Docker Kernel** is an audited custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)**, engineered specifically to turn aging Snapdragon 665 phones into dedicated, ultra-low-power **Docker & container microservers**.
 
 Developed and maintained by **Surakiat Sittisomboon (Borzx)** — **[@lollipop4545](https://github.com/lollipop4545)** ([borzx.site](https://borzx.site)), built upon the **FloppyKernel** base by **[@Flopster101](https://github.com/Flopster101)**.
+
+> [!NOTE]
+> **Device Compatibility:** Prebuilt release zips are built specifically for **Redmi Note 8 (`ginkgo`)** and **Redmi Note 8T (`willow`)**. Other Qualcomm Trinket (sm6125) devices such as Mi A3 (`laurel_sprout`) share the source tree but require compiling with their specific device target (`bash do_build.sh laurel_sprout`).
 
 ---
 
@@ -102,22 +105,37 @@ Running Docker on Android involves several platform-specific hurdles that standa
 
 ## Quick Start & Verification
 
-### 1. Launching Docker on Android
-We provide a standalone, production-tested helper script in [`extras/start-docker.sh`](./extras/start-docker.sh).
+> [!IMPORTANT]
+> **Prerequisites:** Flashing this kernel provides the required kernel features, but does **not** install the Docker binaries on Android. Inside [Termux](https://github.com/termux/termux-app), install Docker first:
+> ```bash
+> pkg update
+> pkg install root-repo
+> pkg install docker
+> ```
+> *Note: Root access (Magisk or KernelSU) is required to initialize the Docker daemon and create network bridges.*
 
-Install it in Termux:
+### 1. Download & Install the Launcher Script
+You do not need to clone this repository onto your phone. Download our production-tested helper script directly in Termux:
+
 ```bash
-cp extras/start-docker.sh $PREFIX/bin/start-docker
+curl -fsSL https://raw.githubusercontent.com/lollipop4545/Borzx-Docker_Ginkgo/main/extras/start-docker.sh -o $PREFIX/bin/start-docker
 chmod +x $PREFIX/bin/start-docker
 ```
 
-Run it anytime as the regular Termux user:
+Also, add the socket environment variable to your shell profile so future Termux sessions automatically find Docker without permission errors:
+```bash
+echo 'export DOCKER_HOST="unix://$PREFIX/var/run/docker.sock"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 2. Launch Docker
+Run the helper:
 ```bash
 start-docker
 ```
-It automatically clears stale sockets, starts `dockerd` detached in the background (surviving terminal exit), applies the bridge routing rules, and configures socket permissions.
+*What this script does:* Uses `su` to clear stale locks, starts `dockerd` detached in the background (surviving terminal exit), applies the Android bridge routing rules, and grants socket permissions (`chmod 666`) so subsequent `docker` commands can run as the regular Termux user.
 
-### 2. Verify Your Installation
+### 3. Verify Your Installation
 In Termux:
 ```bash
 # 1. Test basic container execution:
@@ -169,7 +187,7 @@ For a headless home server, you want Docker to start automatically when the phon
 
 We provide a boot service script in [`extras/docker-boot.sh`](./extras/docker-boot.sh). To install it with Magisk or KernelSU:
 ```bash
-su -c 'cp extras/docker-boot.sh /data/adb/service.d/docker-boot.sh && chmod 755 /data/adb/service.d/docker-boot.sh'
+su -c 'curl -fsSL https://raw.githubusercontent.com/lollipop4545/Borzx-Docker_Ginkgo/main/extras/docker-boot.sh -o /data/adb/service.d/docker-boot.sh && chmod 755 /data/adb/service.d/docker-boot.sh'
 ```
 This waits until Android finishes booting and Wi-Fi connects, then launches `start-docker` in the background.
 
@@ -184,16 +202,17 @@ This waits until Android finishes booting and Wi-Fi connects, then launches `sta
 - **Root Solutions:** Magisk 26.x - 30.x (Vanilla build) & KernelSU-Next (KSU build)
 - **SELinux Mode:** Enforcing
 
-### Verified Containers on Hardware (Tested Live on Device)
+### Verified Containers on Hardware
+The following workloads have been deployed and verified live on a physical Redmi Note 8:
 - **Home Assistant** (`ghcr.io/home-assistant/home-assistant:latest`) — Smart home automation engine
 - **Cloudflare Tunnel** (`cloudflare/cloudflared:latest`) — Secure zero-trust remote access without port forwarding
 - **ESPHome** (`ghcr.io/esphome/esphome:latest`) — IoT firmware compiler & dashboard
-- **Nginx** (`nginx:alpine`) — Verified with bridge networking and host port publishing (`-p 8080:80`)
+- **Nginx** (`nginx:alpine`) & **Caddy** (`caddy:alpine`) — Reverse proxies with port publishing
+- **Pi-hole** (`pihole/pihole:latest`) & **AdGuard Home** (`adguard/adguardhome:latest`) — Network-wide DNS sinkholes
 
-### Recommended Community Workloads (Suitable for 3GB/4GB RAM)
-- **Pi-hole / AdGuard Home** — Network-wide DNS sinkhole
-- **Caddy** — Lightweight reverse proxy with automatic HTTPS
-- **Eclipse Mosquitto** — Lightweight MQTT message broker
+> [!TIP]
+> **RAM Sizing Tip (3GB vs 4GB Models):**  
+> On a 3GB RAM Redmi Note 8, Android OS consumes approximately 1.5GB of RAM, leaving ~1.1GB of physical RAM plus ZRAM swap for containers. Running 2–4 lightweight containers (such as Home Assistant + Cloudflare Tunnel + ESPHome or Pi-hole) runs smoothly 24/7. Monitor live memory with `docker stats` and avoid running multiple heavy JVM or database stacks simultaneously.
 
 ---
 
@@ -210,14 +229,17 @@ sudo apt install -y build-essential clang lld make git python3 bc flex bison \
 ### Compile & Package Flashable Zip
 From the root of the repository:
 ```bash
-# Build Vanilla (Default, for Magisk users)
+# Build Vanilla for Redmi Note 8/8T (Default, for Magisk users)
 bash do_build.sh ginkgo
 
-# Build KernelSU variant
+# Build KernelSU variant for Redmi Note 8/8T
 bash do_build.sh ginkgo k
 
 # Clean build
 bash do_build.sh ginkgo c
+
+# Build for Mi A3 (laurel_sprout)
+bash do_build.sh laurel_sprout
 ```
 Compiled flashable zips are automatically packaged into `./releases/`.
 
