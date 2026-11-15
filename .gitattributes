@@ -1,2 +1,5 @@
 *.c   diff=cpp
 *.h   diff=cpp
+
+# Shell tools must remain usable on Linux/Android after a Windows checkout.
+*.sh text eol=lf

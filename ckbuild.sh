@@ -10,6 +10,9 @@
 # Copyright (C) 2022-2025 Flopster101 (FloppyKernel rewrite & Trinket kernel base)
 # Copyright (C) 2026 lollipop4545 (Borzx-Docker Kernel modifications)
 
+set -eo pipefail
+trap 'echo "ERROR: Build stopped at line $LINENO; see local log.txt" >&2' ERR
+
 ## Variables
 # Toolchains
 AOSP_REPO="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/refs/heads/master"
@@ -142,7 +145,7 @@ fi
 ## Customizable vars
 
 # Borzx-Docker Kernel version
-BD_VER="v.0.5.0"
+BD_VER="v0.5.1-dev"
 
 # Toggles
 USE_CCACHE=1
@@ -275,7 +278,7 @@ cat << "BANNER_EOF"
   ██╔══██╗██║   ██║██╔══██╗ ███╔╝   ██╔██╗ 
   ██████╔╝╚██████╔╝██║  ██║███████╗██╔╝ ██╗
   ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-      D O C K E R   K E R N E L   v0.5.0
+      D O C K E R   K E R N E L   v0.5.1-dev
   ─────────────────────────────────────────
    Dev / Modder : Surakiat (Borzx) (@lollipop4545 | borzx.site)
    Base Kernel  : FloppyKernel by @Flopster101
@@ -326,11 +329,13 @@ get_toolchain() {
             if [[ ! -d "$toolchain_dir" ]]; then
                 echo -e "\nINFO: AOSP Clang not found! Cloning to $toolchain_dir..."
                 CURRENT_CLANG=$(curl -s "$AOSP_REPO" | grep -oE "clang-r[0-9a-f]+" | sort -u | tail -n1)
-                if ! curl -LSsO "$AOSP_ARCHIVE/$CURRENT_CLANG.tar.gz"; then
+                if ! curl -fLSs "$AOSP_ARCHIVE/$CURRENT_CLANG.tar.gz" -o "$WP/aosp-clang.tar.gz"; then
                     echo -e "\nERROR: Cloning failed! Aborting..."
                     exit 1
                 fi
-                mkdir -p "$toolchain_dir" && tar -xf ./*.tar.gz -C "$toolchain_dir" && rm ./*.tar.gz
+                mkdir -p "$toolchain_dir"
+                tar -xf "$WP/aosp-clang.tar.gz" -C "$toolchain_dir"
+                rm "$WP/aosp-clang.tar.gz"
                 touch "$toolchain_dir/bin/aarch64-linux-gnu-elfedit" && chmod +x "$toolchain_dir/bin/aarch64-linux-gnu-elfedit"
                 touch "$toolchain_dir/bin/arm-linux-gnueabi-elfedit" && chmod +x "$toolchain_dir/bin/arm-linux-gnueabi-elfedit"
             fi
@@ -559,7 +564,7 @@ prep_toolchain() {
     if [[ "$USE_GCC_BINUTILS" == "1" ]]; then
         export PATH="${GCC64_DIR}/bin:${GCC_DIR}/bin:${PATH}"
     fi
-    KBUILD_COMPILER_STRING=$("$toolchain_dir/bin/clang" -v 2>&1 | head -n 1 | sed 's/(https..*//' | sed 's/ version//')
+    KBUILD_COMPILER_STRING=$("$toolchain_dir/bin/clang" -v 2>&1 | sed -n '1{s/(https..*//;s/ version//;p;}')
     export KBUILD_COMPILER_STRING
 
     if [[ "$USE_GCC_BINUTILS" == "1" ]]; then
@@ -616,6 +621,8 @@ prep_build() {
 
 build() {
     mkdir -p out
+    # Recreate configuration for every device/root variant.
+    rm -f out/.config
     if [[ "$DO_REGEN" = "1" ]]; then
         if [[ "$DO_KSU" = "1" ]] || [[ "$DO_SUKI" = "1" ]]; then
              echo "ERROR: Can't regenerate with KSU or ReSukiSU argument"
@@ -641,7 +648,7 @@ build() {
     # Delete leftovers
     rm -f out/arch/arm64/boot/Image*
     rm -f out/arch/arm64/boot/dtbo*
-    rm -f log.txt
+    # Preserve configuration output for diagnostics.
 
     export LLVM=1 LLVM_IAS=1
     export ARCH=arm64
@@ -704,7 +711,7 @@ build() {
         HOSTAR="llvm-ar" \
         HOSTAS="llvm-as" \
         HOSTNM="llvm-nm" \
-        LD="ld.lld" 2>&1 | tee log.txt
+        LD="ld.lld" 2>&1 | tee -a log.txt
     else
         make -j$(nproc --all) O=out \
         CC="clang" \
@@ -721,12 +728,13 @@ build() {
         HOSTAR="llvm-ar" \
         HOSTAS="llvm-as" \
         HOSTNM="llvm-nm" \
-        LD="ld.lld" 2>&1 | tee log.txt
+        LD="ld.lld" 2>&1 | tee -a log.txt
     fi
 }
 
 dtbo_build() {
     echo -e "\nINFO: Running dtbo build..."
+    rm -rf "$DTBO_TMP"
     mkdir -p "$DTBO_TMP"
     local IN_DTBO=""
     case "$CODENAME" in
@@ -752,39 +760,49 @@ dtbo_build() {
 
 post_build() {
     ## Check if the kernel binaries were built.
-    if [[ "$CODENAME" == "unified" ]]; then
+    if [[ "$CODENAME" == "mitrinket" ]]; then
         if [[ -f "$OUT_IMAGE" ]] && [[ -f "$DTBO_TMP/dtbo-ginkgo.img" ]] && [[ -f "$DTBO_TMP/dtbo-laurel_sprout.img" ]] && [[ -f "$OUT_DTB_GINKGO" ]] && [[ -f "$OUT_DTB_LAUREL" ]]; then
             echo -e "\nINFO: Kernel compiled succesfully! Zipping up..."
         else
             echo -e "\nERROR: Kernel files not found! Compilation failed?"
-            echo -e "\nINFO: Uploading log to 0x0.st\n"
-            curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
+            echo "INFO: Failure log remains local: log.txt"
             exit 1
         fi
     elif [[ -f "$OUT_IMAGE" ]] && [[ -f "$OUT_DTBO" ]] && [[ -f "$OUT_DTB" ]]; then
         echo -e "\nINFO: Kernel compiled succesfully! Zipping up..."
     else
         echo -e "\nERROR: Kernel files not found! Compilation failed?"
-        echo -e "\nINFO: Uploading log to 0x0.st\n"
-        curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
+        echo "INFO: Failure log remains local: log.txt"
         exit 1
     fi
 
     local AK3_STAGE="$KDIR/out/ak3_staging"
     rm -rf "$AK3_STAGE"
 
-    if [[ -d "$KDIR/AnyKernel3" ]]; then
+    if [[ "$CODENAME" == "ginkgo" && -d "$KDIR/AnyKernel3" ]]; then
         echo -e "\nINFO: Using bundled AnyKernel3 directory from repository..."
         cp -r "$KDIR/AnyKernel3" "$AK3_STAGE"
-    elif [[ -d "$AK3_DIR" ]]; then
+    elif [[ -d "$AK3_DIR/$CODENAME" ]]; then
         echo -e "\nINFO: Using local AnyKernel3 directory ($AK3_DIR)..."
-        cp -r "$AK3_DIR" "$AK3_STAGE"
+        cp -r "$AK3_DIR/$CODENAME" "$AK3_STAGE"
     else
         if ! git clone -q --depth=1 -b "$AK3_BRANCH" "$AK3_URL" "$AK3_STAGE"; then
             echo -e "\nERROR: Failed to clone AnyKernel3!"
             exit 1
         fi
     fi
+
+    case "$CODENAME" in
+        ginkgo) expected_devices=(ginkgo willow) ;;
+        laurel_sprout) expected_devices=(laurel_sprout) ;;
+        mitrinket) expected_devices=(ginkgo willow laurel_sprout) ;;
+    esac
+    for expected in "${expected_devices[@]}"; do
+        grep -Eq "^device.name[0-9]+=$expected$" "$AK3_STAGE/anykernel.sh" || {
+            echo "ERROR: Installer does not support $expected" >&2
+            exit 1
+        }
+    done
 
     ## Copy the built binaries
     cp "$OUT_IMAGE" "$AK3_STAGE"
@@ -801,11 +819,18 @@ post_build() {
 
     ## Prepare kernel flashable zip
     cd "$AK3_STAGE"
+    rm -f "$ZIP_PATH"
     zip -r9 "$ZIP_PATH" * -x '*.git*' README.md '*placeholder'
     cd "$KDIR"
     rm -rf "$AK3_STAGE"
 
+    {
+        printf 'source=%s\ndevice=%s\ncompiler=%s\n' "$(git rev-parse HEAD)" "$CODENAME" "$KBUILD_COMPILER_STRING"
+        sha256sum out/.config "$ZIP_PATH"
+    } > "$ZIP_PATH.manifest"
+    cp out/.config "$ZIP_PATH.config"
     mkdir -p "$KDIR/releases"
+    cp "$ZIP_PATH.manifest" "$ZIP_PATH.config" "$KDIR/releases/"
     cp -f "$ZIP_PATH" "$KDIR/releases/"
 
     echo -e "\nINFO: Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !"
@@ -817,7 +842,7 @@ post_build() {
 upload() {
     if [[ "$DO_ZXZ" == "1" ]]; then
     echo -e "\nINFO: Uploading to 0x0.st...\n"
-    curl -F'file=@'"$ZIP_PATH" http://0x0.st || echo "WARNING: Failed to upload build to 0x0.st (ignored)"
+    curl -f -F'file=@'"$ZIP_PATH" https://0x0.st || echo "WARNING: Failed to upload build to 0x0.st (ignored)"
     fi
 
     if [[ "$DO_TG" == "1" ]]; then
@@ -827,7 +852,7 @@ upload() {
     fi
     if [[ "$LOG_UPLOAD" == "1" ]]; then
         echo -e "\nINFO: Uploading log to 0x0.st\n"
-        curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
+        curl -f -F'file=@log.txt' https://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
     fi
     # Delete any leftover zip files
     # rm -f "$WP/Borzx-DockerKernel*zip"
