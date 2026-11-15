@@ -1,4 +1,4 @@
-# Borzx-Docker Kernel (`v0.5.0`) — Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)
+# Borzx-Docker Kernel (`v0.5.1-dev`) — Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)
 
 ```text
   ██████╗  ██████╗ ██████╗ ███████╗██╗  ██╗
@@ -7,14 +7,14 @@
   ██╔══██╗██║   ██║██╔══██╗ ███╔╝   ██╔██╗ 
   ██████╔╝╚██████╔╝██║  ██║███████╗██╔╝ ██╗
   ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-      D O C K E R   K E R N E L   v0.5.0
+      D O C K E R   K E R N E L   v0.5.1-dev
   ─────────────────────────────────────────
    Dev / Modder : Surakiat (Borzx)
    GitHub / Web : @lollipop4545 | borzx.site
    Base Kernel  : FloppyKernel (@Flopster101)
 ```
 
-**Borzx-Docker Kernel** is an audited custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)**, engineered specifically to turn aging Snapdragon 665 phones into dedicated, ultra-low-power **Docker & container microservers**.
+**Borzx-Docker Kernel** is a custom Linux `4.14.357` kernel for **Xiaomi Redmi Note 8 / 8T (`ginkgo` / `willow`)**, engineered specifically to turn aging Snapdragon 665 phones into dedicated, ultra-low-power **Docker & container microservers**.
 
 Developed and maintained by **Surakiat Sittisomboon (Borzx)** — **[@lollipop4545](https://github.com/lollipop4545)** ([borzx.site](https://borzx.site)), built upon the **FloppyKernel** base by **[@Flopster101](https://github.com/Flopster101)**.
 
@@ -29,7 +29,7 @@ We provide two official builds in the [Releases](https://github.com/lollipop4545
 
 | Variant | Recommended For | Details |
 |---|---|---|
-| **Vanilla** | **Magisk / APatch Users (Default)** | The cleanest, most universal baseline. Compatible with all ROMs and existing root setups. **Flash this if your device already has Magisk!** |
+| **Vanilla** | **Magisk / APatch Users (Default)** | Baseline for supported ROM and root combinations. Compatibility must be checked on the target device. **Flash this if your device already has Magisk!** |
 | **KSUNext-SUSFS** | **KernelSU Users** | Embeds KernelSU-Next and SUSFS directly into the kernel image for built-in kernel-level root without Magisk. |
 
 > [!WARNING]
@@ -39,11 +39,11 @@ We provide two official builds in the [Releases](https://github.com/lollipop4545
 
 ## Verified Kernel Capabilities & `check-config.sh` Audit
 
-This kernel has been audited on a physical Redmi Note 8 using Moby's official `check-config.sh` tool against the live `/proc/config.gz`. The complete 127-line report is available in [CHECK_CONFIG.md](./CHECK_CONFIG.md).
+A kernel capability check was recorded on a physical Redmi Note 8 using Moby's official `check-config.sh` tool against the live `/proc/config.gz`. The complete 127-line report is available in [CHECK_CONFIG.md](./CHECK_CONFIG.md).
 
 ### 1. Kernel Namespaces
 * `CONFIG_NAMESPACES=y`
-* `CONFIG_USER_NS=y` (User namespaces for rootless containers)
+* `CONFIG_USER_NS=y` (User namespaces; rootless Docker requires additional runtime setup and testing)
 * `CONFIG_PID_NS=y` (Process ID namespaces)
 * `CONFIG_IPC_NS=y` (IPC namespaces)
 * `CONFIG_UTS_NS=y` (UTS / hostname namespaces)
@@ -70,6 +70,8 @@ This kernel has been audited on a physical Redmi Note 8 using Moby's official `c
 * `CONFIG_IP_NF_FILTER=y`, `CONFIG_IP6_NF_FILTER=y`, `CONFIG_IP6_NF_IPTABLES=y`, `CONFIG_IP6_NF_NAT=y`
 * `CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y`, `CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y`, `CONFIG_NETFILTER_XT_MATCH_IPVS=y`, `CONFIG_NETFILTER_XT_MARK=y`
 
+IPv6 support is incomplete in the recorded check: IPv6 masquerading is missing and IPv6 forwarding is disabled. Do not assume IPv6 container egress works without additional configuration and testing.
+
 ### 4. IPVS Load Balancing Support
 * `CONFIG_IP_VS=y` & `CONFIG_IP_VS_IPV6=y`
 * `CONFIG_IP_VS_PROTO_TCP=y` & `CONFIG_IP_VS_PROTO_UDP=y`
@@ -93,7 +95,7 @@ Running Docker on Android involves several platform-specific hurdles that standa
    Docker functions with SELinux in **Enforcing** mode. You do *not* need to set `setenforce 0` or compromise device security.
 4. **Android Policy-Routing Bridge Fix:**  
    Android routes network packets using multiple routing tables based on UID and interface. Packets arriving on `docker0` do not consult the `main` routing table by default, breaking published ports (`-p 8080:80`) and container-to-WAN traffic.  
-   Our launch script automatically injects the two required policy routing rules:
+   Our launcher checks for priority conflicts before adding these IPv4 policy routing rules. Use `start-docker --watch` to refresh the uplink rule after network changes. Test VPN and per-app routing on your ROM:
    ```bash
    # Add main routing table lookup
    ip rule add pref 5000 from all lookup main
@@ -110,7 +112,7 @@ Running Docker on Android involves several platform-specific hurdles that standa
 > ```bash
 > pkg update
 > pkg install root-repo
-> pkg install docker
+> pkg install docker util-linux
 > ```
 > *Note: Root access (Magisk or KernelSU) is required to initialize the Docker daemon and create network bridges.*
 
@@ -133,7 +135,7 @@ Run the helper:
 ```bash
 start-docker
 ```
-*What this script does:* Uses `su` to clear stale locks, starts `dockerd` detached in the background (surviving terminal exit), applies the Android bridge routing rules, and grants socket permissions (`chmod 666`) so subsequent `docker` commands can run as the regular Termux user.
+*What this script does:* Uses `su` to clear stale locks, starts `dockerd` detached in the background (surviving terminal exit), applies the Android bridge routing rules, and grants socket permissions (`chmod 660`, root plus the invoking Termux group) so subsequent `docker` commands can run as the regular Termux user.
 
 ### 3. Verify Your Installation
 In Termux:
@@ -154,9 +156,9 @@ docker rm -f test-web
 
 Keeping a smartphone connected to a charger 24/7 at 100% capacity can cause battery degradation and swelling.
 
-The **Qualcomm Snapdragon 665 PMIC (SMB5)** supports true **Hardware Bypass Charging (Power Path Management)**:
+The **Qualcomm Snapdragon 665 PMIC (SMB5)** exposes a charging control node. The following observations are from the documented device test and do not establish electrical bypass behavior across loads and chargers:
 - **Sysfs node:** `/sys/class/power_supply/battery/charging_enabled`
-- **Verified on `ginkgo`:** Writing `0` to `charging_enabled` while USB is connected transitions battery status to **"Not charging"** with **0mA battery drain** (`current_now = 0`). The phone runs entirely from the external USB rail without cycling the battery.
+- **Verified on `ginkgo`:** Writing `0` to `charging_enabled` while USB is connected transitions battery status to **"Not charging"** with **0mA battery drain** (`current_now = 0`). This observation alone does not prove that the battery is electrically bypassed.
 
 ### Automated Battery Guard Loop
 We provide [`extras/battery-guard.sh`](./extras/battery-guard.sh) to maintain the battery between 70% and 80%:
@@ -177,7 +179,9 @@ while true; do
     sleep 60
 done
 ```
-*Alternatively, install the **ACC (Advanced Charging Controller)** module via Magisk, which uses these exact same kernel nodes.*
+The supplied script validates thresholds and sysfs permissions, requires `flock` in the root service PATH (the Termux copy is detected automatically), prevents duplicate instances, and logs to `/data/local/tmp/battery-guard.log`. The inline loop above illustrates the thresholds; install the supplied script for these checks. Validate charging behavior on your hardware. Stop its process with SIGTERM to restore charging; SIGKILL and power loss cannot run cleanup.
+
+*Alternatively, install the **ACC (Advanced Charging Controller)** module via Magisk, and validate which charging controls it selects on your ROM.*
 
 ---
 
@@ -189,7 +193,7 @@ We provide a boot service script in [`extras/docker-boot.sh`](./extras/docker-bo
 ```bash
 su -c 'curl -fsSL https://raw.githubusercontent.com/lollipop4545/Borzx-Docker_Ginkgo/main/extras/docker-boot.sh -o /data/adb/service.d/docker-boot.sh && chmod 755 /data/adb/service.d/docker-boot.sh'
 ```
-This waits until Android finishes booting and Wi-Fi connects, then launches `start-docker` in the background.
+This waits up to 10 minutes for Android boot completion, then retries startup up to 20 times with a 15-second delay. The launcher checks for an uplink routing table. On success, a watcher refreshes routing every 30 seconds. Inspect `/data/local/tmp/docker-boot.log` for failures. The watcher refreshes routes; it does not supervise or restart a crashed daemon.
 
 ---
 
@@ -198,7 +202,7 @@ This waits until Android finishes booting and Wi-Fi connects, then launches `sta
 ### Tested Hardware & ROMs
 - **Device:** Xiaomi Redmi Note 8 (`ginkgo`) / Redmi Note 8T (`willow`)
 - **Firmware:** Global / India / China vendor base
-- **Android Versions:** Android 11, 12, 13, and 14 (tested on LineageOS 20 baseline)
+- **Android versions claimed by the project:** 11–14. The supplied configuration report identifies Android 13; per-ROM verification records for the broader range are not included. Installer version acceptance (10–16) is not a test matrix.
 - **Root Solutions:** Magisk 26.x - 30.x (Vanilla build) & KernelSU-Next (KSU build)
 - **SELinux Mode:** Enforcing
 
@@ -241,15 +245,31 @@ bash do_build.sh ginkgo c
 # Build for Mi A3 (laurel_sprout)
 bash do_build.sh laurel_sprout
 ```
-Compiled flashable zips are automatically packaged into `./releases/`.
+Compiled flashable ZIPs are packaged into `./releases/`, alongside a `.config` copy and a `.manifest` recording the source revision, compiler string, and SHA-256 hashes. Builds stop on command or pipeline failures. Failure logs remain local; artifact uploads require the `o` (0x0.st) or `t` (Telegram) option.
+
+The bundled AnyKernel3 template is for ginkgo/willow only. Other targets use a device-specific template from `$WP/AnyKernel3/<codename>` or the configured remote branch. Packaging checks required device names and rejects mismatched templates. Partition layout and slot behavior still require device testing.
+
+Build on a Linux filesystem (including the WSL2 Linux home directory). Windows filesystems can collide on case-sensitive names and reserved `aux` paths.
+
+Run script-only checks with `bash tests/check-scripts.sh`. CI checks shell syntax, lints the helper scripts, and runs mocked packaging/routing regressions without compiling a kernel. These checks do not establish boot or ROM compatibility.
+
+Toolchain download options still include moving upstream branches and latest-release endpoints. The manifest records what was used, but fully reproducible releases require pinned toolchain revisions and verified download hashes. Maintain and document security backports separately; the kernel version string does not establish patch coverage.
 
 ---
 
 ## Changelog
 
+### v0.5.1-dev (Unreleased)
+- Stop builds on command and pipeline failures; preserve configuration logs and reject mismatched device installers or missing combined-device artifacts.
+- Keep failure logs local, use HTTPS for optional uploads, and include configuration copies and SHA-256 release manifests.
+- Add Docker startup locking, checked socket permissions, routing conflict detection, and optional uplink watching.
+- Retry boot startup and validate battery guard thresholds, permissions, and duplicate instances.
+- Correct capability and compatibility claims; add shell checks and mocked packaging/routing regression tests in CI.
+- Validation: local shell syntax checks and mocked regression tests passed. No kernel compilation, flashing, or hardware validation has been performed for this development version; ShellCheck is configured in CI but was not run locally.
+
 ### v0.5.0 (Initial Official Release)
 - Enabled full Docker cgroups (`devices`, `pids`, `cpu`, `cpuset`, `memory`, `freezer`, `blkio`, and `POSIX_MQUEUE`).
-- Enabled container networking (`veth`, `bridge`, `bridge-netfilter`, full IPv4/IPv6 NAT, and IPVS load balancing).
+- Enabled container networking (`veth`, `bridge`, `bridge-netfilter`, IPv4 NAT, partial IPv6 networking, and IPVS load balancing).
 - Patched `kernel/Makefile` to embed compiled `.config` into `/proc/config.gz`.
 - Bundled AnyKernel3 with clean 7-bit ASCII recovery banner for TWRP / OrangeFox.
 - Added verified Qualcomm bypass charging documentation and `battery-guard.sh`.

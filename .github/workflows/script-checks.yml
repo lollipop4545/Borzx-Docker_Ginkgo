@@ -1,0 +1,19 @@
+name: Script checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          bash -n ckbuild.sh do_build.sh extras/start-docker.sh tests/check-scripts.sh
+          sh -n extras/docker-boot.sh extras/battery-guard.sh
+      - name: ShellCheck helper scripts
+        run: shellcheck -S warning -s bash extras/start-docker.sh && shellcheck -S warning -s sh extras/docker-boot.sh extras/battery-guard.sh
+      - name: Run script regression checks (no kernel build)
+        run: bash tests/check-scripts.sh

@@ -4,7 +4,7 @@
 # Maintainer / Modder: @lollipop4545 (https://github.com/lollipop4545)
 # Original Base / Moral Rights: FloppyKernel by @Flopster101 (https://github.com/Flopster101)
 #
-set -e
+set -eo pipefail
 
 # Configuration
 all_devs=("ginkgo" "laurel_sprout") # Define devices for "all" target

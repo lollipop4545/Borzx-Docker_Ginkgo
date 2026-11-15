@@ -1,14 +1,22 @@
 #!/system/bin/sh
-# Magisk/KernelSU boot script: start Docker after Android finishes booting.
-# Part of Borzx-Docker Kernel: https://github.com/lollipop4545/Borzx-Docker_Ginkgo
-#
-# Requires extras/start-docker.sh installed as $PREFIX/bin/start-docker in Termux.
-# Install:
-#   su -c 'cp docker-boot.sh /data/adb/service.d/docker-boot.sh && chmod 755 /data/adb/service.d/docker-boot.sh'
-
-until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done
-sleep 20   # let Wi-Fi come up so the uplink routing table exists
-
-TERMUX_UID=$(stat -c %u /data/data/com.termux)
-/system/bin/su "$TERMUX_UID" -c '/data/data/com.termux/files/usr/bin/bash -lc start-docker' \
-    > /data/local/tmp/docker-boot.log 2>&1
+# Magisk/KernelSU service; launch as Termux so socket ownership uses its group.
+LOG=/data/local/tmp/docker-boot.log
+exec >> "$LOG" 2>&1
+for attempt in $(seq 1 120); do
+    [ "$(getprop sys.boot_completed)" = 1 ] && break
+    sleep 5
+done
+[ "$(getprop sys.boot_completed)" = 1 ] || { echo 'Android boot timed out'; exit 1; }
+TERMUX=/data/data/com.termux
+LAUNCHER=$TERMUX/files/usr/bin/start-docker
+[ -x "$LAUNCHER" ] || { echo "Missing executable: $LAUNCHER"; exit 1; }
+TERMUX_UID=$(stat -c %u "$TERMUX") || exit 1
+for attempt in $(seq 1 20); do
+    echo "Docker boot attempt $attempt"
+    if /system/bin/su "$TERMUX_UID" -c "$TERMUX/files/usr/bin/bash $LAUNCHER --watch"; then
+        exit 0
+    fi
+    sleep 15
+done
+echo 'Docker boot retries exhausted; inspect this log and dockerd.log'
+exit 1
